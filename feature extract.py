@@ -9,39 +9,19 @@ import glob
 import time
 import os
 import warnings
+import librosa as librosa
 
 
-
-
+#save individual file for each activity
 def extract_csi(raw_folder, labels, save=False, win_len=1000, step=200):
-    """
-    Return List of Array in the format of [X_label1, y_label1, X_label2, y_label2, .... X_Label7, y_label7]
-    Args:
-        raw_folder: the folder path of raw CSI csv files, input_* annotation_*
-        labels    : all the labels existing in the folder
-        save      : boolean, choose whether save the numpy array 
-        win_len   :  integer, window length
-        thrshd    :  float,  determine if an activity is strong enough inside a window
-        step      :  integer, sliding window by step
-    """
     for label in labels:
         features_label = extract_csi_by_label(raw_folder, label, save, win_len, step)
         
-        features_label.to_csv(str(label)+'_STFT_200msec_test_try.csv', index=False)
+        features_label.to_csv(str(label)+'_DWT_200msec.csv', index=False)
     return features_label
 
-
+#extact all files for an activity
 def extract_csi_by_label(raw_folder, label, save=False, win_len=1000, step=200):
-    """
-    Returns all the samples (X,y) of "label" in the entire dataset
-    Args:
-        raw_foler: The path of Dataset folder
-        label    : str, could be one of labels
-        labels   : list of str, ['bed', 'fall', 'pickup', 'run', 'sitdown', 'standup', 'walk']
-        save     : boolean, choose whether save the numpy array 
-        win_len  :  integer, window length
-        step     :  integer, sliding window by step
-    """
     print('Starting Extract CSI for Label '+str(label))
     data_path_pattern = os.path.join(raw_folder, 'input_*' + label + '*.csv')
     input_csv_files = sorted(glob.glob(data_path_pattern))
@@ -57,18 +37,8 @@ def extract_csi_by_label(raw_folder, label, save=False, win_len=1000, step=200):
         
     return features_label
 
-
+# extract all features and make a dataframe
 def merge_csi_label(csifile, labelfile, win_len=1000, step=200):
-    """
-    Merge CSV files into a Numpy Array  X,  csi amplitude feature
-    Returns Numpy Array X, Shape(Num, Win_Len, 90)
-    Args:
-        csifile  :  str, csv file containing CSI data
-        labelfile:  str, csv fiel with activity label 
-        win_len  :  integer, window length
-        thrshd   :  float,  determine if an activity is strong enough inside a window
-        step     :  integer, sliding window by step
-    """
     activity_count = []
     activity =[]
     with open(labelfile, 'r') as labelf:
@@ -97,20 +67,24 @@ def merge_csi_label(csifile, labelfile, win_len=1000, step=200):
     return pca_filtred_data
 
 
-    def STFT_feature_extraction(a,Window_size,step,bins):
+#STFT feature extraction
+def STFT_feature_extraction(a,Window_size,step,bins):
     # Size of the Fast Fourier Transform (FFT), which will also be used as the window length
-        n_fft=Window_size
+    n_fft=Window_size
 
-        # Step or stride between windows. If the step is smaller than the window length, the windows will overlap
-        hop_length=step
+    # Step or stride between windows. If the step is smaller than the window length, the windows will overlap
+    hop_length=step
 
-        # Specify the window type for FFT/STFT
-        window_type ='hann'
+    # Specify the window type for FFT/STFT
+    window_type ='hann'
 
-        spectrogram_librosa = np.abs(librosa.stft(a, n_fft=n_fft, hop_length=hop_length, win_length=n_fft, window=window_type)) ** 2
+    spectrogram_librosa = np.abs(librosa.stft(a, n_fft=n_fft, hop_length=hop_length, win_length=n_fft, window=window_type)) ** 2
 
-        return np.transpose(spectrogram_librosa[0:bins])
+    return np.transpose(spectrogram_librosa[0:bins])
 
+
+
+#time split for activity in alloted window 
 def annonation_time_split (data,time_ms):
     annonation_label_df = pd.DataFrame()
     for i in range (0,len(data),int(time_ms)):
@@ -123,7 +97,7 @@ def moving_average(data,window_size):
     return np.convolve(data,window,'same')
 
 
-
+#remove outliers using median filters
 def hampel_filter_forloop(input_series, window_size, n_sigmas=3):
     
     n = len(input_series)
@@ -132,7 +106,7 @@ def hampel_filter_forloop(input_series, window_size, n_sigmas=3):
     
     indices = []
     
-    # possibly use np.nanmedian 
+   
     for i in range((window_size),(n - window_size)):
         x0 = np.median(input_series[(i - window_size):(i + window_size)])
         S0 = k * np.median(np.abs(input_series[(i - window_size):(i + window_size)] - x0))
@@ -143,6 +117,7 @@ def hampel_filter_forloop(input_series, window_size, n_sigmas=3):
     return new_series, indices
 
 
+#dimentional reduction using PCA
 def pca_filtering(amp):
     constant_offset = np.empty_like(amp)
     filtered_data = np.empty_like(amp)
@@ -175,6 +150,7 @@ def pca_filtering(amp):
     return a
 
 
+#DWT feature extraction by power computation
 def DWT_feature_extraction(a,time_ms,levels=5):
     empty_df = pd.DataFrame()
     for j in range(0,5):
