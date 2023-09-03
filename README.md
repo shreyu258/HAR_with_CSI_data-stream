@@ -24,3 +24,4 @@ The files with "input_" prefix are WiFi Channel State Information data.
 - 92nd - 181st column shows (30 subcarrier * 3 antenna) phase.
 
 The files with "annotation_" prefix are annotation data.
+- [PCA_STFT_visualize](https://github.com/shreyu258/HAR_with_CSI_data-stream/blob/main/PCA_DWT_visualize_plots.ipynb) shows the plot of all features.
